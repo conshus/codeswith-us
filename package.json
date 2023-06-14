@@ -12,6 +12,7 @@
   "dependencies": {
     "@astrojs/netlify": "^2.3.0",
     "@astrojs/svelte": "^2.2.0",
+    "@octokit/core": "^4.2.1",
     "astro": "^2.6.1",
     "svelte": "^3.59.1"
   }

@@ -1,0 +1,28 @@
+---
+const { slug } = Astro.params;
+
+---
+/Host
+<h1>{slug}</h1>
+{Astro.url.origin + '/.netlify/identity/authorize?provider=github'}
+<div data-netlify-identity-button>Login with Netlify Identity</div>
+<a href="https://harmonious-peony-c339d6.netlify.app/.netlify/identity/authorize?provider=github">login</a>
+<button id="logout">logout</button>
+
+<script>
+console.log("host!");
+const netlifyIdentity = window.netlifyIdentity;
+netlifyIdentity.on('init', user => console.log('init', user));
+netlifyIdentity.on('login', user => console.log('login', user));
+netlifyIdentity.on('logout', () => console.log('Logged out'));
+netlifyIdentity.on('error', err => console.error('Error', err));
+netlifyIdentity.on('open', () => console.log('Widget opened'));
+netlifyIdentity.on('close', () => console.log('Widget closed'));
+
+const logoutBtn = document.querySelector('#logout');
+logoutBtn.addEventListener("click", ()=>{
+    console.log("logout!");
+    netlifyIdentity.logout();
+});
+</script>
+<script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
