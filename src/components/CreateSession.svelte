@@ -6,16 +6,24 @@
     let timeInMs;
     let hosts = [];
     let userToAdd = {};
-    userToAdd.host ={};
-    userToAdd.guest ={};
+    userToAdd.host = {};
+    userToAdd.guest = {};
     let guests = [];
-    let conversationId;
-    let gitHubRepo;
+    let prereqs = [];
+    let prereqToAdd = {};
+    let resources = [];
+    let resourceToAdd = {};
+    let applicationId = "";
+    let conversationId = "";
+    let sessionId = "";
+    let githubRepo;
+    let githubRepoPreview;
     let state = "";
+    let isGeneratingCreds = false;
 
     $: slug = title && title.toLowerCase().replaceAll(' ','-').replaceAll("'",'');
     $: slugDuplicate = $sessions?.find(session => session.slug === slug);
-    $: allowSubmit = title && datetime && !slugDuplicate && hosts && conversationId && gitHubRepo;
+    $: allowSubmit = title && datetime && !slugDuplicate && hosts && applicationId && conversationId && sessionId && githubRepo;
 
     // Example POST method implementation:
     async function postData(url = '', data = {}) {
@@ -57,27 +65,27 @@
         // get profile image from GitHub and add to object
         state = `getting ${type} GitHub profile picture...`;
         try {
+            const githubResponse = await fetch(`https://api.github.com/users/${userToAdd[type].github}`);
+            const githubData = await githubResponse.json();
+            console.log(githubData);
+            userToAdd[type].avatar_url = githubData.avatar_url;
+            console.log(`${type}: `, userToAdd[type]);
+            state = `adding ${type}...`
+            if (type === "host"){
+                hosts = [...hosts, userToAdd[type]];
+            } else if (type === "guest"){
+                guests = [...guests, userToAdd[type]];
+            }
+            state = "";
+            userToAdd[type] = {};
+
+            console.log('hosts: ', hosts);
+            console.log('guests: ', guests);
 
         } catch (error) {
             console.error('Error getting GitHub info: ', error);
             state = error;
         }
-        const githubResponse = await fetch(`https://api.github.com/users/${userToAdd[type].github}`);
-        const githubData = await githubResponse.json();
-        console.log(githubData);
-        userToAdd[type].avatar_url = githubData.avatar_url;
-        console.log(`${type}: `, userToAdd[type]);
-        state = `adding ${type}...`
-        if (type === "host"){
-            hosts = [...hosts, userToAdd[type]];
-        } else if (type === "guest"){
-            guests = [...guests, userToAdd[type]];
-        }
-        state = "";
-        userToAdd[type] = {};
-
-        console.log('hosts: ', hosts);
-        console.log('guests: ', guests);
 
     }
 
@@ -89,13 +97,69 @@
             hosts = hosts;
             console.log("new hosts: ", hosts);
         } else if (type === "guest") {
-            guests = [...guests.splice(index, 1)];
+            // guests = [...guests.splice(index, 1)];
+            guests.splice(index, 1);
+            guests = guests;
             console.log("new guests: ", guests);
         }
     }
 
+    async function generateCredentials() {
+        console.log("generateCredentials");
+        try {
+            state = "Generating credentials..."
+            isGeneratingCreds = true;
+            const credsJSON = await postData(`/.netlify/functions/generate_creds`);
+            console.log("credsJSON: ", credsJSON);
+            applicationId = credsJSON.applicationId;
+            conversationId = credsJSON.conversationId;
+            sessionId = credsJSON.sessionId;
+
+            state = "Generated credentials successfully.";
+            setTimeout(() => {
+                state = "";
+                isGeneratingCreds = false;
+            }, 1000);
+            
+        } catch (error){
+            console.error('Error generating credentials: ', error);
+            state = error;
+            isGeneratingCreds = false;
+        }
+
+    }
+
     async function createSession() {
 
+    }
+
+    function previewGitHubRepo() {
+        console.log("github preview: ", `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`);
+        githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`
+    }
+
+    function addPrereq() {
+        prereqs = [...prereqs, prereqToAdd];
+        prereqToAdd = {};
+    }
+
+    function removePrereq(index) {
+        console.log("removePrereq: ", index);
+        prereqs.splice(index, 1);
+        prereqs = prereqs;
+        console.log("prereqs: ", prereqs);
+    }
+
+    function addResource() {
+        resources = [...resources, resourceToAdd];
+        resourceToAdd = {};
+    }
+
+    function removeResource(index) {
+        console.log("removeResource: ", index);
+        resources.splice(index, 1);
+        resources = resources;
+        console.log("resources: ", resources);
     }
 
 </script>
@@ -115,8 +179,17 @@
     <input type="datetime-local" bind:value={datetime} on:change={handleDateTimeChange} id="datetime" required>
 </details>
 <details>
-    <summary>Add a Conversation</summary>
-    Add a Conversation
+    <summary>Generate Credentials</summary>
+    <div class="flex-columns">
+        <div class="left column"><button on:click={generateCredentials} disabled={isGeneratingCreds}>{isGeneratingCreds ? "Generating": "Generate" }</button></div>
+        <div class="right column">
+            <div>
+                <b>ApplicationID: </b> {applicationId}
+                <br/><b>ConversationID: </b> {conversationId}
+                <br/><b>SessionID: </b> {sessionId}
+            </div>
+        </div>
+    </div>
 </details>
 <details>
     <summary>Host(s)</summary>
@@ -186,15 +259,67 @@
 </details>
 <details>
     <summary>GitHub Repo</summary>
-    Add GitHub Repo
+    <div class="flex-columns">
+        <div class="left column">
+            <input bind:value={githubRepo} placeholder="Enter GitHub Repo URL"/>
+            <button on:click={previewGitHubRepo}>Get Preview</button>
+        </div>
+        <div class="right column">
+            {#if githubRepoPreview}
+                Preview: <a href={githubRepoPreview} target="_blank">{githubRepoPreview}</a>
+            {/if}
+        </div>
+    </div>
 </details>
 <details>
     <summary>Prerequisite(s)</summary>
-    Add a prerequisite
+    <div class="flex-columns">
+        <div class="left column">
+            <input bind:value={prereqToAdd.instruction} placeholder="Enter Instruction"/>
+            <br/>
+            <input bind:value={prereqToAdd.link} placeholder="Enter Link"/>
+            <br/>
+            <input bind:value={prereqToAdd.text} placeholder="Enter Link Text"/>
+            <br/><br/>
+            <button on:click={ addPrereq } disabled={!prereqToAdd.instruction || !prereqToAdd.link || !prereqToAdd.text } name="add-prereq">Add Prerequisite</button>
+        </div>
+        <div class="right column">
+            <div>
+                {#each prereqs as prereq, i (i)}
+                    <ul>
+                        <li>
+                            {prereq.instruction} - <a href={prereq.link} target="_blank">{prereq.text}</a>
+                            <button on:click={() => removePrereq(i)}>x</button>
+                        </li>
+                    </ul>
+                {/each}
+            </div>
+        </div>
+    </div>
 </details>
 <details>
     <summary>Resource(s)</summary>
-    Add a resource
+    <div class="flex-columns">
+        <div class="left column">
+            <input bind:value={resourceToAdd.link} placeholder="Enter Link"/>
+            <br/>
+            <input bind:value={resourceToAdd.text} placeholder="Enter Link Text"/>
+            <br/><br/>
+            <button on:click={ addResource } disabled={ !resourceToAdd.link || !resourceToAdd.text } name="add-resource">Add Resource</button>
+        </div>
+        <div class="right column">
+            <div>
+                {#each resources as resource, i (i)}
+                    <ul>
+                        <li>
+                            <a href={resource.link} target="_blank">{resource.text}</a>
+                            <button on:click={() => removeResource(i)}>x</button>
+                        </li>
+                    </ul>
+                {/each}
+            </div>
+        </div>
+    </div>
 </details>
 <br/>
 <button on:click={createSession} disabled={!allowSubmit} name="add-session">Create Session</button>
