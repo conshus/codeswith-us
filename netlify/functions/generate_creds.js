@@ -12,7 +12,7 @@ exports.handler = async (event, context) => {
     // }
 
     const { identity, user } = context.clientContext;
-    console.log("user: ", user, SITE_ID);
+    // console.log("user: ", user, SITE_ID);
 
     if (user){
         const userResponse = await fetch('https://api.netlify.com/api/v1/user',{
@@ -55,7 +55,7 @@ exports.handler = async (event, context) => {
             try {
                 const session = await vonage.video.createSession({ mediaMode:"routed" });
                 const conversation = await vonageClient.sendPostRequest('https://api.nexmo.com/v0.3/conversations',{});
-                console.log("conversation: ", conversation);
+                // console.log("conversation: ", conversation);
         
                 return {
                     statusCode: 200,

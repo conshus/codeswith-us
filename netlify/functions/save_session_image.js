@@ -1,7 +1,59 @@
 const { GITHUB_PAT, NETLIFY_PAT, SITE_ID } = process.env;
 import fetch from 'node-fetch';
-import { Octokit } from "@octokit/core";
-const octokit = new Octokit({ auth: GITHUB_PAT });
+import Busboy from 'busboy';
+
+import { Octokit } from "@octokit/rest";
+const octokit = new Octokit({ 
+    auth: GITHUB_PAT,
+    userAgent: 'CodesWithUs v0.0.1', 
+});
+
+// from https://www.netlify.com/blog/2021/07/29/how-to-process-multipart-form-data-with-a-netlify-function/
+// https://answers.netlify.com/t/trouble-with-handling-files-in-netlify-function/42418/34
+function parseMultipartForm(event) {
+  return new Promise((resolve) => {
+    // we'll store all form fields inside of this
+    const fields = {};
+
+    // let's instantiate our busboy instance!
+    const busboy = Busboy({
+      // it uses request headers
+      // to extract the form boundary value (the ----WebKitFormBoundary thing)
+      headers: event.headers
+    });
+
+    // before parsing anything, we need to set up some handlers.
+    // whenever busboy comes across a file ...
+    busboy.on('file',(fieldname, filestream, filename, transferEncoding, mimeType) => {
+        // ... we take a look at the file's data ...
+        filestream.on('data', (data) => {
+          // ... and write the file's name, type and content into `fields`.
+          console.log("data: ",data);
+          fields[fieldname] = {
+            filename,
+            type: mimeType,
+            content: data,
+          };
+        });
+      }
+    );
+
+    // whenever busboy comes across a normal field ...
+    busboy.on('field', (fieldName, value) => {
+      // ... we write its value into `fields`.
+      console.log("fieldName: ", fieldName);
+      fields[fieldName] = value;
+    });
+
+    // once busboy is finished, we resolve the promise with the resulted fields.
+    busboy.on("close", () => {
+        resolve(fields)
+    });
+  
+    // now that all handlers are set up, we can finally start processing our request!
+    busboy.end(Buffer.from(event.body, 'base64'));
+  });
+}
 
 exports.handler = async (event, context) => {
 
@@ -29,39 +81,22 @@ exports.handler = async (event, context) => {
         const siteData = await siteResponse.json();
         const githubRepo = siteData.build_settings.repo_path.split(`${data.slug}/`)[1];
 
-
         if (user.app_metadata.provider === data.login_providers[0] && user.email === data.email && userId === dataId ){
             // Authorized
-            const base64newSessions = Buffer.from(event.body).toString('base64');
 
-            console.log("get sessions file");
-            const originalFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+            const fields = await parseMultipartForm(event);
+
+            const imageFileBase64 = fields.imageFile.content.toString('base64');
+            const imageFilename = fields.imageFile.filename.filename + '.' + fields.imageFile.filename.mimeType.split('image/')[1];
+
+            const result = await octokit.rest.repos.createOrUpdateFileContents({
                 owner: data.slug,
                 repo: githubRepo,
-                path: 'sessions.json',
-                headers: {
-                  'X-GitHub-Api-Version': '2022-11-28'
-                }
+                message: `adding ${imageFilename}`,
+                path: `images/${imageFilename}`,
+                content: imageFileBase64,
             });
-            console.log("get sha");
-            const originalFileSHA = originalFile.data.sha;
 
-            console.log("update file with new data");
-            await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-                owner: data.slug,
-                repo: githubRepo,
-                path: 'sessions.json',
-                message: `updates sessions - ${Date.now()}`,
-                committer: {
-                  name: user.user_metadata.full_name,
-                  email: user.email
-                },
-                content: base64newSessions,
-                sha: originalFileSHA,
-                headers: {
-                  'X-GitHub-Api-Version': '2022-11-28'
-                }
-            });
 
             return {
                 statusCode: 200,
@@ -70,7 +105,7 @@ exports.handler = async (event, context) => {
                     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                     'Access-Control-Allow-Methods': '*', 
                 },
-                body: JSON.stringify({status : 'Success'}),
+                body: JSON.stringify({status: 'Success', result}),
             };    
         } else {
             return {
@@ -95,6 +130,5 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({status: 'Not Authorized!'}),
         };
-    }
-      
+    }    
 };

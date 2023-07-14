@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "codeswithus",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -13,6 +13,7 @@
     "@astrojs/netlify": "^2.3.0",
     "@astrojs/svelte": "^2.2.0",
     "@octokit/core": "^4.2.1",
+    "@octokit/rest": "^19.0.13",
     "@vonage/server-client": "^1.4.0",
     "@vonage/server-sdk": "^3.5.1",
     "@vonage/video": "^1.7.1",

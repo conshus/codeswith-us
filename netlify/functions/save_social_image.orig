@@ -1,0 +1,231 @@
+const { GITHUB_PAT, NETLIFY_PAT, SITE_ID } = process.env;
+import fetch from 'node-fetch';
+import Busboy from 'busboy';
+// import * as Busboy from "busboy";
+// const Busboy = require('busboy');
+
+// import { Octokit } from "@octokit/core";
+// const octokit = new Octokit({ auth: GITHUB_PAT });
+
+import { Octokit } from "@octokit/rest";
+const octokit = new Octokit({ 
+    auth: GITHUB_PAT,
+    userAgent: 'CodesWithUs v0.0.1', 
+});
+
+// from https://www.netlify.com/blog/2021/07/29/how-to-process-multipart-form-data-with-a-netlify-function/
+// https://answers.netlify.com/t/trouble-with-handling-files-in-netlify-function/42418/34
+function parseMultipartForm(event) {
+  return new Promise((resolve) => {
+    // we'll store all form fields inside of this
+    const fields = {};
+
+    // let's instantiate our busboy instance!
+    const busboy = Busboy({
+      // it uses request headers
+      // to extract the form boundary value (the ----WebKitFormBoundary thing)
+      headers: event.headers
+    });
+
+    // before parsing anything, we need to set up some handlers.
+    // whenever busboy comes across a file ...
+    busboy.on('file',(fieldname, filestream, filename, transferEncoding, mimeType) => {
+        // ... we take a look at the file's data ...
+        filestream.on('data', (data) => {
+          // ... and write the file's name, type and content into `fields`.
+          console.log("data: ",data);
+          fields[fieldname] = {
+            filename,
+            type: mimeType,
+            content: data,
+          };
+        });
+      }
+    );
+
+    // whenever busboy comes across a normal field ...
+    busboy.on('field', (fieldName, value) => {
+      // ... we write its value into `fields`.
+      console.log("fieldName: ", fieldName);
+      fields[fieldName] = value;
+    });
+
+    // once busboy is finished, we resolve the promise with the resulted fields.
+    busboy.on("close", () => {
+        resolve(fields)
+    });
+  
+    // now that all handlers are set up, we can finally start processing our request!
+    busboy.end(Buffer.from(event.body, 'base64'));
+  });
+}
+
+exports.handler = async (event, context) => {
+
+    const { identity, user } = context.clientContext;
+
+    if (user){
+        const userResponse = await fetch('https://api.netlify.com/api/v1/user',{
+            method: 'get',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + NETLIFY_PAT
+            },
+        });
+        const data = await userResponse.json();
+        const userId = user.user_metadata.avatar_url.split('/u/')[1].split('?v=')[0];
+        const dataId = data.avatar_url.split('/u/')[1].split('?v=')[0];
+
+        const siteResponse = await fetch(`https://api.netlify.com/api/v1/sites/${SITE_ID}`,{
+            method: 'get',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + NETLIFY_PAT
+            },
+        });
+        const siteData = await siteResponse.json();
+        const githubRepo = siteData.build_settings.repo_path.split(`${data.slug}/`)[1];
+
+        if (user.app_metadata.provider === data.login_providers[0] && user.email === data.email && userId === dataId ){
+            // Authorized
+            // console.log("event.body: ", event.body);
+            // const result = "woohoo";
+            // console.log("event.body.split('base64,')[1]: ", event.body.split('base64,')[1]);
+            // const eventBody64 = event.body.split('base64,')[1];
+            // console.log("eventBody64: ", eventBody64);
+            // const imageBase64 = event.body.split('base64,')[1];
+
+            const fields = await parseMultipartForm(event);
+            console.log("fields: ", fields);
+            console.log("fields.imageFile.content: ", fields.imageFile.content);
+
+            // console.log("Buffer.from(event.body): ", Buffer.from(event.body,'binary'));
+            // const base64newEventContents = Buffer.from(event.body).toString('base64');
+            // const base64newEventContents = Buffer.from(eventBody64).toString('base64');
+            // const base64newEventContents = Buffer.from(eventBody64,'binary').toString('base64');
+
+            // const base64newEventContents = Buffer.from(eventBody64).toString('base64');
+            // console.log("base64newEventContents: ",base64newEventContents);
+            
+            // const base64newEventContents = Buffer.from([]).toString('base64');
+
+            // const imageResponse = await fetch("https://archive.org/download/OurShow7-1-23/7-1-23-1400.jpg");
+            // console.log("imageResponse: ",imageResponse);
+            // let bufferData = await imageResponse.buffer();
+            // console.log("bufferData: ", bufferData);
+
+            // const base64newEventContents = Buffer.from(event.body,'binary').toString('base64');
+            // const base64newEventContents = bufferData.toString('base64');
+            // console.log("base64newEventContents: ",base64newEventContents)
+
+            const imageFileBase64 = fields.imageFile.content.toString('base64');
+            const imageFilename = fields.imageFile.filename.filename + '.' + fields.imageFile.filename.mimeType.split('image/')[1];
+
+            console.log("imageFilename: ", imageFilename);
+
+
+            console.log("create event file");
+            // // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents
+            // // await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            // // https://docs.github.com/en/rest/git/blobs?apiVersion=2022-11-28#create-a-blob
+            // const blobResponse = await octokit.request('POST /repos/{owner}/{repo}/git/blobs', {
+            //     owner: data.slug,
+            //     repo: githubRepo,
+            //     // path: `test.png`,
+            //     // message: `adding test.png - ${Date.now()}`,
+            //     // committer: {
+            //     //   name: user.user_metadata.full_name,
+            //     //   email: user.email
+            //     // },
+            //     content: imageFileBase64,
+            //     // content: imageBase64,
+            //     // encoding: 'utf-8',
+            //     encoding: 'base64',
+            //     // content: event.body,
+            //     // headers: {
+            //     //   'X-GitHub-Api-Version': '2022-11-28'
+            //     // }
+            // });
+            // // console.log("blobResponse: ", blobResponse);
+
+            // const treeResponse = await octokit.request('POST /repos/{owner}/{repo}/git/trees', {
+            //     owner: data.slug,
+            //     repo: githubRepo,
+            //     tree: [{
+            //         path: 'test.png',
+            //         mode: '100644',
+            //         type: 'blob',
+            //         sha: blobResponse.data.sha
+            //     }],
+            //     // base_tree: ''
+            // });
+            // // console.log("treeResponse: ", treeResponse);
+
+            // const commitResponse = await octokit.request('POST /repos/{owner}/{repo}/git/commits', {
+            //     owner: data.slug,
+            //     repo: githubRepo,
+            //     message: `adding test.png - ${Date.now()}`,
+            //     tree: treeResponse.data.sha,
+            //     parents: [],
+            // });
+
+            // // console.log("commitResponse: ", commitResponse);
+
+
+            // const result = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
+            //     owner: data.slug,
+            //     repo: githubRepo,
+            //     ref: `refs/heads/testing${Date.now()}`,
+            //     sha: commitResponse.data.sha
+            // }); 
+
+
+
+            // trying octokit rest
+            console.log("trying octokit rest", githubRepo, data.slug);
+            // const result = await octokit.request("/user");
+            const result = await octokit.rest.repos.createOrUpdateFileContents({
+                owner: data.slug,
+                repo: githubRepo,
+                message: `adding ${imageFilename}`,
+                path: `images/${imageFilename}`,
+                // content: base64newEventContents,
+                content: imageFileBase64,
+                // content: event.body,
+              })
+
+
+            return {
+                statusCode: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*", // Allow from anywhere 
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Allow-Methods': '*', 
+                },
+                body: JSON.stringify({status: 'Success', result}),
+            };    
+        } else {
+            return {
+                statusCode: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*", // Allow from anywhere
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Allow-Methods': '*', 
+                },
+                body: JSON.stringify({verified: false}),
+            };    
+        }
+    
+    } else {
+        // Not authorized
+        return {
+            statusCode: 401,
+            headers: {
+                "Access-Control-Allow-Origin": "*", // Allow from anywhere 
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Allow-Methods': '*', 
+            },
+            body: JSON.stringify({status: 'Not Authorized!'}),
+        };
+    }    
+};

@@ -1,5 +1,6 @@
 <script>
     import { user, sessions } from "../stores";
+    import Canvas from "./Canvas.svelte";
 
     let title;
     let datetime;
@@ -20,10 +21,19 @@
     let githubRepoPreview;
     let state = "";
     let isGeneratingCreds = false;
+    let selectedWorkspace;
+    let codesandboxDialog;
+    let stackblitzDialog;
+    let sessionImageURL="";
+
+    let workspaceURL;
+
+    let canvas;
 
     $: slug = title && title.toLowerCase().replaceAll(' ','-').replaceAll("'",'');
     $: slugDuplicate = $sessions?.find(session => session.slug === slug);
-    $: allowSubmit = title && datetime && !slugDuplicate && hosts && applicationId && conversationId && sessionId && githubRepo;
+    $: workspaceURL = githubRepoPreview;
+    $: allowSubmit = title && datetime && !slugDuplicate && hosts && applicationId && conversationId && sessionId && githubRepo && workspaceURL;
 
     // Example POST method implementation:
     async function postData(url = '', data = {}) {
@@ -130,12 +140,40 @@
     }
 
     async function createSession() {
+        sessionImageURL = await canvas.saveImage();
+        console.log("sessionImageURL: ", sessionImageURL);
+        const sessionToAdd = {
+            title,
+            slug,
+            datetime,
+            hosts,
+            guests,
+            conversationId,
+            applicationId,
+            sessionId,
+            githubRepo,
+            sessionImageURL,
+            workspaceURL
+        }
+
+        console.log("sessionToAdd: ", sessionToAdd);
 
     }
 
     function previewGitHubRepo() {
+        console.log("selectedWorkspace: ", selectedWorkspace);
         console.log("github preview: ", `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`);
-        githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`
+        switch (selectedWorkspace){
+            case 'codesandbox':
+                githubRepoPreview = `${githubRepo.replaceAll('github','githubbox')}`;
+                // githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`;
+                break;
+            case 'stackblitz':
+                githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`;
+                break;
+
+        }
+        // githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`
     }
 
     function addPrereq() {
@@ -165,6 +203,18 @@
 </script>
 
 <h1>Create session</h1>
+<dialog  bind:this={codesandboxDialog}>
+    <p>Run your project in a cloud enviroment with publically accessible URLs! Learn more about CodeSandbox at <a href="https://codesandbox.io" target="_blank">https://codesandbox.io</p>
+    <form method="dialog">
+      <button>OK</button>
+    </form>
+</dialog>
+<dialog  bind:this={stackblitzDialog}>
+    <p>Run your project completely inside your browser! Learn more about StackBlitz at <a href="https://stackblitz.com" target="_blank">https://stackblitz.com</a></p>
+    <form method="dialog">
+      <button>OK</button>
+    </form>
+</dialog>
 <details>
     <summary>Title</summary>
     <input bind:value={title} id="title" required placeholder="Enter Session Title">
@@ -261,8 +311,24 @@
     <summary>GitHub Repo</summary>
     <div class="flex-columns">
         <div class="left column">
-            <input bind:value={githubRepo} placeholder="Enter GitHub Repo URL"/>
-            <button on:click={previewGitHubRepo}>Get Preview</button>
+            <input type="url" bind:value={githubRepo} placeholder="Enter GitHub Repo URL"/>
+            <fieldset>
+                <legend>Select a workspace:</legend>
+            
+                <div>
+                    <input type="radio" bind:group={selectedWorkspace} id="codesandbox" name="workspace" value="codesandbox">
+                    <label for="codesandbox">CodeSandbox</label>
+                    <button on:click={() => codesandboxDialog.showModal()}>more info</button>
+                </div>
+                <div>
+                    <input type="radio" bind:group={selectedWorkspace} id="stackblitz" name="workspace" value="stackblitz">
+                    <label for="stackblitz">StackBlitz</label>
+                    <button on:click={() => stackblitzDialog.showModal()}>more info</button>
+                  </div>
+              
+              </fieldset>
+            
+            <button on:click={previewGitHubRepo} disabled={!selectedWorkspace | !githubRepo}>Get Preview</button>
         </div>
         <div class="right column">
             {#if githubRepoPreview}
@@ -320,6 +386,10 @@
             </div>
         </div>
     </div>
+</details>
+<details>
+    <summary>Session Image</summary>
+    <Canvas bind:this={canvas} {slug} {title} {hosts} {guests}/>
 </details>
 <br/>
 <button on:click={createSession} disabled={!allowSubmit} name="add-session">Create Session</button>

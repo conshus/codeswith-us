@@ -13,7 +13,7 @@ exports.handler = async function (event, context) {
             },
         });
         const data = await response.json();
-        console.log("data: ", data);
+        // console.log("data: ", data);
         const userId = user.user_metadata.avatar_url.split('/u/')[1].split('?v=')[0];
         const dataId = data.avatar_url.split('/u/')[1].split('?v=')[0];
         console.log("userId: ", userId);
