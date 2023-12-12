@@ -4,6 +4,7 @@ export interface Props {
 }
 
 const { title } = Astro.props;
+
 ---
 
 <!DOCTYPE html>
@@ -17,20 +18,121 @@ const { title } = Astro.props;
 		<title>{title}</title>
 	</head>
 	<body>
+		<header>
+			<div class="layout-section">
+				<menu>
+					<li><a href="/">{Astro.url.hostname}</a></li>
+				</menu>
+				<menu>
+					<li><span class:list={[ { underline: Astro.url.pathname.replaceAll('/','') === '' }]}><a href="/">upcoming</a></span> | <span class:list={[ { underline: Astro.url.pathname.replaceAll('/','') === 'past' }]}><a href="/past">past</a></span></li>
+				</menu>
+			</div>
+		</header>
 		<slot />
+		<footer>
+			<div class="layout-section">
+				<menu>
+					<li><a href="https://codeswith.us" target="_blank">codeswith.us</a></li>
+				</menu>
+			</div>
+		</footer>
 	</body>
 </html>
 <style is:global>
 	:root {
 		--accent: 124, 58, 237;
 		--accent-gradient: linear-gradient(45deg, rgb(var(--accent)), #da62c4 30%, white 60%);
+		--header-height: 75px;
+		--footer-height: 50px;
 	}
 	html {
 		font-family: system-ui, sans-serif;
 		background-color: #F6F6F6;
 	}
+	body {
+		box-sizing: border-box;
+		margin: 0;
+
+	}
 	code {
 		font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono,
 			Bitstream Vera Sans Mono, Courier New, monospace;
 	}
+	.layout-section {
+		display: flex;
+		align-items: center;
+		width: 100%;
+		max-width: 1000px;
+		margin: 0 auto;
+	}
+
+	header {
+		width: 100vw;
+		height: var(--header-height);
+		background-color: #000000;
+		display: flex;
+		align-items: center;
+		color: #ffffff;
+		font-size: 30px;
+		position: fixed;
+		top: 0;
+		z-index: 50;
+	}
+
+	header div {
+		justify-content: space-between;
+	}
+
+	header li {
+		margin: 0 10px;
+	}
+
+	header li span a {
+		text-decoration: none;
+	}
+
+	header a, footer a {
+		color: white;
+		margin: 0 10px;
+	}
+
+	menu {
+		display: flex;
+		padding: 0;
+	    list-style-type: none;
+	}
+
+	footer {
+		width: 100vw;
+		height: var(--footer-height);
+		background-color: #000000;
+		position: fixed;
+		bottom: 0;
+		display: flex;
+		justify-content: end;
+		align-items: center;
+		font-weight: bolder;
+	}
+
+	footer div {
+		justify-content: end;
+	}
+
+	li {
+		list-style: none;
+		list-style-position: outside;
+	}
+	main, section {
+	    margin: auto;
+		width: 100%;
+		max-width: 1000px;
+		/* height: calc( 100vh - var(--header-height) - var(--footer-height)); */
+		margin-top: calc( var(--header-height) + 5px);
+		margin-bottom: calc( var(--footer-height) + 5px);
+	}
+
+	.underline {
+		text-decoration: underline;
+	}
+
 </style>

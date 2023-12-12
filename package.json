@@ -12,12 +12,13 @@
   "dependencies": {
     "@astrojs/netlify": "^2.3.0",
     "@astrojs/svelte": "^2.2.0",
+    "@lifelongdev/dwane-timer": "^0.0.9",
     "@octokit/core": "^4.2.1",
     "@octokit/rest": "^19.0.13",
-    "@vonage/server-client": "^1.4.0",
-    "@vonage/server-sdk": "^3.5.1",
-    "@vonage/video": "^1.7.1",
-    "astro": "^2.6.1",
+    "@vonage/server-client": "^1.8.0",
+    "@vonage/server-sdk": "^3.9.1",
+    "@vonage/video": "^1.11.0",
+    "astro": "^2.10.1",
     "svelte": "^3.59.1"
   }
 }

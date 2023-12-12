@@ -1,6 +1,180 @@
 ---
+import Layout from '../../layouts/Layout.astro';
 const { slug } = Astro.params;
+let siteURL = Astro.url.origin;
+let sessionsJSON;
+let sessions = [];
+let session;
+console.log("siteURL: ", siteURL);
+
+try {
+	const sessionsResponse = await fetch(siteURL+'/.netlify/functions/get_sessions');
+	sessionsJSON = await sessionsResponse.json();
+	sessions = sessionsJSON.filter(session => session.slug===Astro.url.pathname.replaceAll('/',''));
+	// console.log("sessions details: ", sessions);
+    if (sessions.length === 0){
+        return Astro.redirect('/');
+    } else {
+		session = sessions[0];
+		console.log("session details: ", session);
+	}
+} catch (error){
+	console.log("Error getting sessions: ", error);
+}
 
 ---
+<script>
+	import '@lifelongdev/dwane-timer/dwane-timer.js';
+</script>
 
-<h1>{slug}</h1>
+<Layout title="Welcome to Astro.">
+
+	<section data-siteURL={siteURL}>
+		<img id="session-image" src={session.sessionImageURL}/>
+		<span id="session-update"><dwane-timer timer-deadline={session.timeInMs} /></span>
+		<details>
+			<summary>Description</summary>
+			{session.description}
+		</details>
+		<div id="more-info">
+			<details>
+				<summary>Participants</summary>
+				<ul>
+					{session.guests.map((user) => (
+						<li>
+							<div class="user">
+								<div>
+									<img src={user.avatar_url} alt={user.name + "GitHub profile image"}/>
+								</div>
+								<div>
+									{user.name} (guest)
+									<br/><a href={"https://github.com/"+ user.github} target="_blank">GitHub</a>
+									{user.twitter !== '' ? <a href={"https://twitter.com/"+ user.twitter} target="_blank">Twitter</a> : '' }										
+								</div>
+							</div>
+						</li>
+					))}
+					{session.hosts.map((user) => (
+						<li>
+							<div class="user">
+								<div>
+									<img src={user.avatar_url} alt={user.name + "GitHub profile image"}/>
+								</div>
+								<div>
+									{user.name} (host)
+									<br/><a href={"https://github.com/"+ user.github} target="_blank">GitHub</a>
+									{user.twitter !== '' ? <a href={"https://twitter.com/"+ user.twitter} target="_blank">Twitter</a> : '' }										
+								</div>
+							</div>
+						</li>
+					))}
+				</ul>
+		</details>
+			<details>
+				<summary>Prerequisites</summary>
+				<ul>
+					{session.prereqs.map((prereq) => (
+						<li class="prereq-li">
+							{prereq.instruction} : <a href={prereq.link} target="_blank">{prereq.text}</a>
+						</li>
+					))}
+				</ul>
+			</details>		
+		</div>
+	</section>
+</Layout>
+
+<script is:inline>
+	const siteURL = document.querySelector("section").dataset.siteurl;
+	console.log("should show up in console: ", siteURL);
+	const sessionUpdate = document.querySelector("#session-update");
+	const dwaneTimerEl = document.querySelector("dwane-timer");
+	console.log("dwaneTimerEl: ", dwaneTimerEl);
+	console.log("window.location.href: ", window.location.href);
+	dwaneTimerEl.addEventListener("countdown-ended", async (e)=> {
+		console.log("countdown-ended: ", e);
+		// set sessionUpdate to starting soon...
+		sessionUpdate.textContent = "starting soon...";
+		// check to see if stream has started
+		const isBroadcastingResponse = await fetch(siteURL+'/.netlify/functions/is_broadcasting');
+		const { isBroadcasting } = await isBroadcastingResponse.json();
+		console.log("isBroadcasting: ", isBroadcasting);
+		// if so, show links to watch and interact
+		sessionUpdate.innerHTML = `<a href="${window.location.href}/watch">just watch</a> | <a href="${window.location.href}/code">code along</a>`;
+		// if not, check again in 5-10secs
+	})
+</script>
+
+<style>
+	#session-image {
+		width: 100%;
+	}
+	section {
+		text-align: center;
+	}
+
+	#session-update {
+		font-size: xx-large;
+	}
+
+	dwane-timer::part(weekday) {
+		font-size: xx-large;
+	}
+	dwane-timer::part(date), dwane-timer::part(time) {
+		font-size: x-large;
+	}
+    details {
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        padding: 0.5em 0.5em 0;
+    }
+
+    summary {
+        font-weight: bold;
+        margin: -0.5em -0.5em 0;
+        padding: 0.5em;
+    }
+
+    details[open] {
+        padding: 0.5em;
+    }
+
+    details[open] summary {
+        border-bottom: 1px solid #aaa;
+        margin-bottom: 0.5em;
+    }
+
+	#more-info {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: flex-start;
+	}
+
+	#more-info details {
+		flex: 1 1 384px; /*  Stretching: */
+	    margin: 5px;
+	}
+
+	.user {
+        display: flex;
+		align-items: center;
+		text-align: left;
+        border: 1px black solid;
+        margin: 5px;
+        padding: 2px;
+    }
+    .user img {
+        width: 50px;
+    }
+
+    .user div {
+        margin: 2px;
+    }
+
+	.prereq-li {
+		list-style: decimal;
+		text-align: left;
+	}
+
+</style>

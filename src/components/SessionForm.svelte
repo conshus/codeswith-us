@@ -1,45 +1,31 @@
 <script>
     import { user, sessions } from "../stores";
     import Canvas from "./Canvas.svelte";
+    export let selectedSession;
+    let state = "";
+    let selectedWorkspace;
 
-    let title;
-    let datetime;
-    let description;
-    let timeInMs;
-    let hosts = [];
+    let isGeneratingCreds = false;
+
+
+    let codesandboxDialog;
+    let stackblitzDialog;
+    let githubRepo;
+    let updateGitHubRepo = false;
+
+    let canvas;
+    let updateImage = false;
+
     let userToAdd = {};
     userToAdd.host = {};
     userToAdd.guest = {};
-    let guests = [];
-    let prereqs = [];
+
     let prereqToAdd = {};
-    let resources = [];
     let resourceToAdd = {};
-    let applicationId = "";
-    let conversationId = "";
-    let sessionId = "";
-    let githubRepo;
-    let githubRepoPreview;
-    let state = "";
-    let isGeneratingCreds = false;
-    let selectedWorkspace;
-    let codesandboxDialog;
-    let stackblitzDialog;
-    let sessionImageURL="";
-
-    const statusOptions = ['pending', 'upcoming', 'ended'];
-    let status;
-
-    let workspaceURL;
-
-    let canvas;
-
     let isBusy = false;
 
-    $: slug = title && title.toLowerCase().replaceAll(' ','-').replaceAll("'",'');
-    $: slugDuplicate = $sessions?.find(session => session.slug === slug);
-    $: workspaceURL = githubRepoPreview;
-    $: allowSubmit = !isBusy && title && datetime && !slugDuplicate && hosts && applicationId && conversationId && sessionId && githubRepo && workspaceURL;
+    const statusOptions = ['pending', 'upcoming', 'ended'];
+
 
     // Example POST method implementation:
     async function postData(url = '', data = {}) {
@@ -63,15 +49,41 @@
         const timezoneString = `${sign}${
         Math.abs(timezoneHr) < 10 ? "0" + Math.abs(timezoneHr) : Math.abs(timezoneHr)
         }${timezoneMin === 0 ? "00" : Math.abs(timezoneMin)}`;
-        const newDate = new Date(`${datetime}${timezoneString}`);
-        timeInMs = Date.parse(newDate);
-        console.log("timeInMs: ", timeInMs);
-        const datetimeSplit = datetime.split('T')[0].split('-')
+        const newDate = new Date(`${selectedSession.datetime}${timezoneString}`);
+        selectedSession.timeInMs = Date.parse(newDate);
+        console.log("selectedSession.timeInMs: ", selectedSession.timeInMs);
+        const datetimeSplit = selectedSession.datetime.split('T')[0].split('-')
         // yearMonth = `${datetimeSplit[0]}-${datetimeSplit[1]}`;
     }
 
+    async function generateCredentials() {
+        console.log("generateCredentials");
+        try {
+            state = "Generating credentials..."
+            isGeneratingCreds = true;
+            const credsJSON = await postData(`/.netlify/functions/generate_creds`);
+            console.log("credsJSON: ", credsJSON);
+            selectedSession.applicationId = credsJSON.applicationId;
+            selectedSession.conversationId = credsJSON.conversationId;
+            selectedSession.sessionId = credsJSON.sessionId;
+
+            state = "Generated credentials successfully.";
+            setTimeout(() => {
+                state = "";
+                isGeneratingCreds = false;
+            }, 1000);
+            
+        } catch (error){
+            console.error('Error generating credentials: ', error);
+            state = error;
+            isGeneratingCreds = false;
+        }
+
+    }
+
+
     async function addUser(type) {
-        console.log("hosts: ", hosts);
+        console.log("hosts: ", selectedSession.hosts);
         console.log(`${type}: `, userToAdd[type]);
         userToAdd[type].github = userToAdd[type].github.replaceAll('@','');
         userToAdd[type].twitter = userToAdd[type].twitter ? userToAdd[type].twitter.replaceAll('@','') : '';
@@ -88,15 +100,15 @@
             console.log(`${type}: `, userToAdd[type]);
             state = `adding ${type}...`
             if (type === "host"){
-                hosts = [...hosts, userToAdd[type]];
+                selectedSession.hosts = [...selectedSession.hosts, userToAdd[type]];
             } else if (type === "guest"){
-                guests = [...guests, userToAdd[type]];
+                selectedSession.guests = [...selectedSession.guests, userToAdd[type]];
             }
             state = "";
             userToAdd[type] = {};
 
-            console.log('hosts: ', hosts);
-            console.log('guests: ', guests);
+            console.log('hosts: ', selectedSession.hosts);
+            console.log('guests: ', selectedSession.guests);
 
         } catch (error) {
             console.error('Error getting GitHub info: ', error);
@@ -109,110 +121,14 @@
         console.log("removeUser: ", type, index);
         if (type === "host"){
             // hosts = [...hosts.splice(index, 1)];
-            hosts.splice(index, 1);
-            hosts = hosts;
-            console.log("new hosts: ", hosts);
+            selectedSession.hosts.splice(index, 1);
+            selectedSession.hosts = selectedSession.hosts;
+            console.log("new hosts: ", selectedSession.hosts);
         } else if (type === "guest") {
             // guests = [...guests.splice(index, 1)];
-            guests.splice(index, 1);
-            guests = guests;
-            console.log("new guests: ", guests);
-        }
-    }
-
-    async function generateCredentials() {
-        console.log("generateCredentials");
-        try {
-            state = "Generating credentials..."
-            isGeneratingCreds = true;
-            const credsJSON = await postData(`/.netlify/functions/generate_creds`);
-            console.log("credsJSON: ", credsJSON);
-            applicationId = credsJSON.applicationId;
-            conversationId = credsJSON.conversationId;
-            sessionId = credsJSON.sessionId;
-
-            state = "Generated credentials successfully.";
-            setTimeout(() => {
-                state = "";
-                isGeneratingCreds = false;
-            }, 1000);
-            
-        } catch (error){
-            console.error('Error generating credentials: ', error);
-            state = error;
-            isGeneratingCreds = false;
-        }
-
-    }
-
-    async function createSession() {
-        try {
-            isBusy = true;
-            state = "saving Session Image...";
-            sessionImageURL = await canvas.saveImage();
-            console.log("sessionImageURL: ", sessionImageURL);
-            const sessionToAdd = {
-                title,
-                description,
-                slug,
-                datetime,
-                timeInMs,
-                hosts,
-                guests,
-                conversationId,
-                applicationId,
-                sessionId,
-                githubRepo,
-                sessionImageURL,
-                workspaceURL,
-                resources,
-                prereqs,
-                status
-            }
-            console.log("sessionToAdd: ", sessionToAdd);
-            state = "saving Session..."
-            const newSessions = [...$sessions, sessionToAdd];
-            console.log("newSessions: ", newSessions);
-            // save session
-            const saveSessionsJSON = await postData(`/.netlify/functions/save_sessions`,newSessions);
-
-            $sessions = newSessions;
-            console.log("$sessions: ", $sessions);
-
-            // clear values
-            title = "";
-            description = "";
-            datetime = null;
-            timeInMs = null;
-            hosts = [];
-            userToAdd = {};
-            userToAdd.host = {};
-            userToAdd.guest = {};
-            guests = [];
-            prereqs = [];
-            prereqToAdd = {};
-            resources = [];
-            resourceToAdd = {};
-            applicationId = "";
-            conversationId = "";
-            sessionId = "";
-            githubRepo = "";
-            githubRepoPreview = "";
-            selectedWorkspace = null;
-            sessionImageURL = "";
-            workspaceURL = "";
-
-            state = "Session saved successfully.";
-            setTimeout(() => {
-                state = "";
-                isBusy = false;
-            }, 1000);
-
-        } catch (error){
-            console.error('Error saving sessions: ', error);
-            console.log("error $sessions: ", $sessions);
-            state = error;
-            isBusy = false;
+            selectedSession.guests.splice(index, 1);
+            selectedSession.guests = selectedSession.guests;
+            console.log("new guests: ", selectedSession.guests);
         }
     }
 
@@ -231,34 +147,84 @@
         }
         // githubRepoPreview = `https://stackblitz.com/${githubRepo.replaceAll('.com','').replaceAll('https://','')}`
     }
-
+    
     function addPrereq() {
-        prereqs = [...prereqs, prereqToAdd];
+        selectedSession.prereqs = [...selectedSession.prereqs, prereqToAdd];
         prereqToAdd = {};
     }
 
     function removePrereq(index) {
         console.log("removePrereq: ", index);
-        prereqs.splice(index, 1);
-        prereqs = prereqs;
-        console.log("prereqs: ", prereqs);
+        selectedSession.prereqs.splice(index, 1);
+        selectedSession.prereqs = selectedSession.prereqs;
+        console.log("prereqs: ", selectedSession.prereqs);
     }
 
     function addResource() {
-        resources = [...resources, resourceToAdd];
+        selectedSession.resources = [...selectedSession.resources, resourceToAdd];
         resourceToAdd = {};
     }
 
     function removeResource(index) {
         console.log("removeResource: ", index);
-        resources.splice(index, 1);
-        resources = resources;
-        console.log("resources: ", resources);
+        selectedSession.resources.splice(index, 1);
+        selectedSession.resources = selectedSession.resources;
+        console.log("resources: ", selectedSession.resources);
     }
+
+    async function updateSession() {
+        try {
+            isBusy = true;
+            let updateImageResponseStatus = "";
+            if (updateImage){
+                state = "saving Session Image...";
+                updateImageResponseStatus = await canvas.updateImage();
+                console.log("updateImageResponseStatus: ", updateImageResponseStatus);
+            }
+
+            if (updateImageResponseStatus==="Success" || updateImageResponseStatus === ""){
+                state = "updating Session..."
+                // find old session in $sessions and replace with selectedSession
+                const newSessions = $sessions.map( session => {
+                    if(session.slug === selectedSession.slug){
+                        session = selectedSession;
+                    }
+                    return session;
+                });
+                // const newSessions = [...$sessions, sessionToAdd];
+                console.log("newSessions: ", newSessions);
+                // save session
+                const saveSessionsJSON = await postData(`/.netlify/functions/save_sessions`,newSessions);
+
+                $sessions = newSessions;
+                console.log("$sessions: ", $sessions);
+                updateGitHubRepo = false;
+                updateImage = false;
+                state = "Session updated successfully.";
+                setTimeout(() => {
+                    state = "";
+                    isBusy = false;
+                }, 1000);
+
+            } else {
+                state = "error updating image, see console" 
+            }
+
+        } catch (error){
+            console.error('Error updating sessions: ', error);
+            // console.log("error $sessions: ", $sessions);
+            state = error;
+            isBusy = false;
+        }
+    }
+
 
 </script>
 
-<h1>Create session</h1>
+<!-- <h1>session form here</h1>
+{#if selectedSession}
+    <h1>{selectedSession.title}</h1>
+{/if} -->
 <dialog  bind:this={codesandboxDialog}>
     <p>Run your project in a cloud enviroment with publically accessible URLs! Learn more about CodeSandbox at <a href="https://codesandbox.io" target="_blank">https://codesandbox.io</p>
     <form method="dialog">
@@ -271,9 +237,10 @@
       <button>OK</button>
     </form>
 </dialog>
+
 <details>
     <summary>Status</summary>
-    <select bind:value={status}>
+    <select bind:value={selectedSession.status}>
         {#each statusOptions as statusOption}
             <option value={statusOption}>
                 {statusOption}
@@ -283,30 +250,29 @@
 </details>
 <details>
     <summary>Title</summary>
-    <input bind:value={title} id="title" required placeholder="Enter Session Title">
+    <input bind:value={selectedSession.title} id="title" required placeholder="Enter Session Title">
     <br/><br/>
     <label for="slug">Slug:</label>
-    <input bind:value={slug} id="slug" disabled required>
+    <input bind:value={selectedSession.slug} id="slug" disabled required>
     <br/>
-    {slugDuplicate ? "event name needs to be unique":""}
 </details>
 <details>
     <summary>Description</summary>
-    <textarea bind:value={description} id="description" name="description" rows="5" cols="33" placeholder="Enter Session Description"></textarea>
+    <textarea bind:value={selectedSession.description} id="description" name="description" rows="5" cols="33" placeholder="Enter Session Description"></textarea>
 </details>
 <details>
     <summary>Date and Time</summary>
-    <input type="datetime-local" bind:value={datetime} on:change={handleDateTimeChange} id="datetime" required>
+    <input type="datetime-local" bind:value={selectedSession.datetime} on:change={handleDateTimeChange} id="datetime" required>
 </details>
 <details>
-    <summary>Generate Credentials</summary>
+    <summary>Credentials</summary>
     <div class="flex-columns">
         <div class="left column"><button on:click={generateCredentials} disabled={isGeneratingCreds}>{isGeneratingCreds ? "Generating": "Generate" }</button></div>
         <div class="right column">
             <div>
-                <b>ApplicationID: </b> {applicationId}
-                <br/><b>ConversationID: </b> {conversationId}
-                <br/><b>SessionID: </b> {sessionId}
+                <b>ApplicationID: </b> {selectedSession.applicationId}
+                <br/><b>ConversationID: </b> {selectedSession.conversationId}
+                <br/><b>SessionID: </b> {selectedSession.sessionId}
             </div>
         </div>
     </div>
@@ -324,7 +290,7 @@
             <button on:click={() => addUser('host')} disabled={!userToAdd.host.name || !userToAdd.host.github } name="add-host">Add host</button>
         </div>
         <div class="right column">
-            {#each hosts as host, i (i)}
+            {#each selectedSession.hosts as host, i (i)}
                 <div class="user">
                     <div>
                         <img src={host.avatar_url} alt={host.name + "GitHub profile image"}/>
@@ -357,7 +323,7 @@
             <button on:click={() => addUser('guest')} disabled={!userToAdd.guest.name || !userToAdd.guest.github } name="add-guest">Add guest</button>
         </div>
         <div class="right column">
-            {#each guests as guest, i (i)}
+            {#each selectedSession.guests as guest, i (i)}
                 <div class="user">
                     <div>
                         <img src={guest.avatar_url} alt={guest.name + "GitHub profile image"}/>
@@ -379,33 +345,40 @@
 </details>
 <details>
     <summary>GitHub Repo</summary>
-    <div class="flex-columns">
-        <div class="left column">
-            <input type="url" bind:value={githubRepo} placeholder="Enter GitHub Repo URL"/>
-            <fieldset>
-                <legend>Select a workspace:</legend>
-            
-                <div>
-                    <input type="radio" bind:group={selectedWorkspace} id="codesandbox" name="workspace" value="codesandbox">
-                    <label for="codesandbox">CodeSandbox</label>
-                    <button on:click={() => codesandboxDialog.showModal()}>more info</button>
-                </div>
-                <div>
-                    <input type="radio" bind:group={selectedWorkspace} id="stackblitz" name="workspace" value="stackblitz">
-                    <label for="stackblitz">StackBlitz</label>
-                    <button on:click={() => stackblitzDialog.showModal()}>more info</button>
-                  </div>
-              
-              </fieldset>
-            
-            <button on:click={previewGitHubRepo} disabled={!selectedWorkspace | !githubRepo}>Get Preview</button>
+    <input type="checkbox" bind:checked={updateGitHubRepo} id="updateGitHubRepo" name="updateGitHubRepo">
+    <label for="updateGitHubRepo">Update GitHub repo?</label>
+    {#if !updateGitHubRepo}
+        <br/>Current: <br/>
+        <a href="{selectedSession.workspaceURL}" target="_blank">{selectedSession.workspaceURL}</a>
+    {:else}
+        <div class="flex-columns">
+            <div class="left column">
+                <input type="url" bind:value={githubRepo} placeholder="Enter new GitHub Repo URL"/>
+                <fieldset>
+                    <legend>Select a workspace:</legend>
+                
+                    <div>
+                        <input type="radio" bind:group={selectedWorkspace} id="codesandbox" name="workspace" value="codesandbox">
+                        <label for="codesandbox">CodeSandbox</label>
+                        <button on:click={() => codesandboxDialog.showModal()}>more info</button>
+                    </div>
+                    <div>
+                        <input type="radio" bind:group={selectedWorkspace} id="stackblitz" name="workspace" value="stackblitz">
+                        <label for="stackblitz">StackBlitz</label>
+                        <button on:click={() => stackblitzDialog.showModal()}>more info</button>
+                    </div>
+                
+                </fieldset>
+                
+                <button on:click={previewGitHubRepo} disabled={!selectedWorkspace | !githubRepo}>Get Preview</button>
+            </div>
+            <div class="right column">
+                <!-- {#if githubRepoPreview}
+                    Preview: <a href={githubRepoPreview} target="_blank">{githubRepoPreview}</a>
+                {/if} -->
+            </div>
         </div>
-        <div class="right column">
-            {#if githubRepoPreview}
-                Preview: <a href={githubRepoPreview} target="_blank">{githubRepoPreview}</a>
-            {/if}
-        </div>
-    </div>
+    {/if}
 </details>
 <details>
     <summary>Prerequisite(s)</summary>
@@ -421,7 +394,7 @@
         </div>
         <div class="right column">
             <div>
-                {#each prereqs as prereq, i (i)}
+                {#each selectedSession.prereqs as prereq, i (i)}
                     <ul>
                         <li>
                             {prereq.instruction} - <a href={prereq.link} target="_blank">{prereq.text}</a>
@@ -445,7 +418,7 @@
         </div>
         <div class="right column">
             <div>
-                {#each resources as resource, i (i)}
+                {#each selectedSession.resources as resource, i (i)}
                     <ul>
                         <li>
                             <a href={resource.link} target="_blank">{resource.text}</a>
@@ -459,14 +432,19 @@
 </details>
 <details>
     <summary>Session Image</summary>
-    <Canvas bind:this={canvas} {slug} {title} {hosts} {guests}/>
+    <input type="checkbox" bind:checked={updateImage} id="updateImage" name="updateImage">
+    <label for="updateImage">Update Session Image?</label><br/>
+    {#if !updateImage}
+        <img src={selectedSession.sessionImageURL+'?'+Date.now()} alt="session info"/>
+    {:else}
+        <Canvas bind:this={canvas} slug={selectedSession.slug} title={selectedSession.title} hosts={selectedSession.hosts} guests={selectedSession.guests}/>
+    {/if}
 </details>
 <br/>
-<button on:click={createSession} disabled={!allowSubmit} name="add-session">Create Session</button>
+<button on:click={updateSession} name="update-session">Update Session</button>
 <br/>
 <div id="state">{state}</div>
 <br/><br/>
-
 
 
 <style>
@@ -517,4 +495,7 @@
         margin: 2px;
     }
 
+    img {
+        width: 100%;
+    }
 </style>

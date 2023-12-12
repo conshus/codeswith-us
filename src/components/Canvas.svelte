@@ -54,6 +54,31 @@
 
 	}
 
+	export async function updateImage() {
+        try {
+
+            if (fileInput.files[0]){
+                fileData = fileInput.files[0];
+            } else {
+                const filename = `${slug}.${blobData.type.split('image/')[1]}`;
+                console.log("filename: ", filename);
+                fileData = new File([blobData], filename, { type: blobData.type });
+                console.log("fileData: ", fileData);
+
+            }
+
+            // const saveImageResponse = await postData(`/.netlify/functions/save_social_image`, bufferData);
+            const updateImageResponse = await postData(`/.netlify/functions/update_session_image`);
+            console.log("updateImageResponse: ", updateImageResponse);
+            console.log("updateImageResponse.status: ", updateImageResponse.status);
+
+            return updateImageResponse.status
+
+        } catch (error) {
+            console.error("error updating image: ",error);
+        }
+
+	}
     
     onMount(() => {
         // const context = canvas.getContext('2d');
@@ -414,7 +439,7 @@
     {#if filePicked}
          <img class="uploaded-image" src={imgSrcBlob} alt="Info for session"/>
     {:else}
-        use this generated image {textWidth}<br/>
+        use this generated image<br/>
         <canvas bind:this={canvas} width={w} height={w/2} />
     {/if}
     or upload your own:

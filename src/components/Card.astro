@@ -1,63 +1,91 @@
 ---
-export interface Props {
-	title: string;
-	body: string;
-	href: string;
-}
+// export interface Props {
+// 	title: string;
+// 	body: string;
+// 	href: string;
+// }
 
-const { href, title, body } = Astro.props;
+// const { href, title, body } = Astro.props;
+const {session} = Astro.props;
 ---
 
-<li class="link-card">
-	<a href={href}>
-		<h2>
-			{title}
-			<span>&rarr;</span>
-		</h2>
-		<p>
-			{body}
-		</p>
-	</a>
+<script>
+	import '@lifelongdev/dwane-timer/dwane-timer.js';
+
+</script>
+<li class="card">
+	<div class="card-preview">
+		<img src={session.sessionImageURL} />
+		<!-- <video autoplay muted loop src="/assets/videos/xr-tictactoe-demo.mp4"></video> -->
+	</div>
+	<div class="card-info">
+		<h1 class="card-title">{session.title}</h1>
+		<dwane-timer timer-deadline={session.timeInMs} />
+		<br/><p class="card-title"><a href={session.slug}>enter</a></p>
+	</div>
 </li>
 <style>
-	.link-card {
-		list-style: none;
-		display: flex;
-		padding: 0.25rem;
-		background-color: white;
-		background-image: none;
-		background-size: 400%;
-		border-radius: 0.6rem;
-		background-position: 100%;
-		transition: background-position 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-	}
+    .card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        /* padding: 1rem; */
+        border: 1px solid black;
+        width: 100%;
+        max-width: 500px;
+        border-radius: 20px;
+        /* border-radius: 20px 20px 0 0; */
+        overflow: hidden;
 
-	.link-card > a {
+    }
+
+    .card-preview {
+        /* height: 300px; */
+        width: 100%;
+        /* max-width: 300px; */
+        position: relative;
+        overflow: hidden;
+        /* margin-bottom: 10px; */
+    }
+
+    .card-preview img {
 		width: 100%;
-		text-decoration: none;
-		line-height: 1.4;
-		padding: 1rem 1.3rem;
-		border-radius: 0.35rem;
-		color: #111;
-		background-color: white;
-		opacity: 0.8;
-	}
-	h2 {
-		margin: 0;
-		font-size: 1.25rem;
-		transition: color 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-	}
-	p {
-		margin-top: 0.5rem;
-		margin-bottom: 0;
-		color: #444;
-	}
-	.link-card:is(:hover, :focus-within) {
-		background-position: 0;
-		background-image: var(--accent-gradient);
-	}
-	.link-card:is(:hover, :focus-within) h2 {
-		color: rgb(var(--accent));
-	}
+        /* position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translate(-50%,-50%);
+        -moz-transform: translate(-50%,-50%);
+        -ms-transform: translate(-50%,-50%);
+        transform: translate(-50%,-50%);         */
+    }
+
+    .card-info {
+        /* position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translate(-50%,-50%);
+        -moz-transform: translate(-50%,-50%);
+        -ms-transform: translate(-50%,-50%);
+        transform: translate(-50%,-50%); */
+        text-align: center;
+    }
+
+    .card-title {
+        /* background-color: rgba(0, 0, 0, .7);
+        color: white;  
+        padding: 5px;
+        margin-bottom: 15px; */
+		font-size: clamp(.875rem,.45rem + 2vw,2.125rem);
+    }
+
+    details {
+        margin: 5px;
+        cursor: pointer;
+        text-align: center;
+    }
+    summary {
+        /* text-align: center; */
+    }
+
+
 </style>

@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
         }
     });
 
-    const locationsContent = Buffer.from(originalFile.data.content, "base64").toString();
+    const sessionsContent = Buffer.from(originalFile.data.content, "base64").toString();
 
     return {
         statusCode: 200,
@@ -46,6 +46,6 @@ exports.handler = async (event, context) => {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Allow-Methods': '*', 
         },
-        body: locationsContent,
+        body: sessionsContent,
     };     
 };

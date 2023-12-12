@@ -9,10 +9,10 @@ console.log("siteURL: ", siteURL);
 try {
 	const response = await fetch(siteURL+'/.netlify/functions/get_sessions');
 	sessionsResponse = await response.json();
-	sessions = sessionsResponse.filter(session => session.status==="upcoming").sort((a,b)=>{
+	sessions = sessionsResponse.filter(session => session.status==="past").sort((a,b)=>{
                     return a.timeInMs - b.timeInMs;
                 });
-	// console.log("sessions: ", sessions);
+	console.log("sessions: ", sessions);
 } catch (error){
 	console.log("Error getting sessions: ", error);
 }
@@ -21,7 +21,7 @@ try {
 <Layout title="Welcome to Astro.">
 	<main>
 		<!-- {sessions.length === 0 ? <div id="empty">no upcoming sessions yet.</div> : <div>got some sessions</div>} -->
-		{sessions.length === 0 && <div id="empty">no upcoming sessions yet.</div>}
+		{sessions.length === 0 && <div id="empty">no past sessions yet.</div>}
 		{sessions.length > 0 &&
 			(<ul role="list" class="sessions-grid">{
 			sessions.map((session) => (

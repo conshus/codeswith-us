@@ -31,6 +31,12 @@
     Choose the private key downloaded from Vonage Dashboard.
     <br/><br/>
     <input type="file" id="private-key-input" on:change={handleFiles} />
-    <br/><textarea id="key-textarea" bind:this={keyText} bind:value={base64} placeholder="VONAGE_PRIVATE_KEY64 will show up here." disabled></textarea>
+    <br/><textarea id="key-textarea" bind:this={keyText} bind:value={base64} placeholder="VONAGE_PRIVATE_KEY64 will show up here." rows="15" cols="30" disabled></textarea>
     <br/><button id="copy-button" on:click={copyToClipboard}>{buttonText}</button>
 </div>
+
+<style>
+    div {
+        text-align: center;
+    }
+</style>
